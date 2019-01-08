@@ -272,14 +272,17 @@
       (else
        7))))
 
+(define parent car)
+(define ifnone cadr)
+
 ;; FIXME
 (define successor-of-in-or
   (lambda (value bst if-none)
     (cond ((empty-tree? bst)
            if-none)
           ((<= (root bst) value)
-           (successor-of-in-or value (right-subtree bst) (if (null? (left-subtree bst)) if-none (root bst))))
+           (successor-of-in-or value (right-subtree bst) (if (null? (right-subtree bst)) if-none (if (= (root bst) value) (root (right-subtree bst)) if-none))))
           (else
-           (successor-of-in-or value (left-subtree bst) (if (null? (right-subtree bst)) if-none (root bst)))))))
+           (successor-of-in-or value (left-subtree bst) (if (null? (left-subtree bst)) if-none (if (= (root (left-subtree bst))) (root bst) if-none)))))))
     
                
