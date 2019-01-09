@@ -281,8 +281,36 @@
     (cond ((empty-tree? bst)
            if-none)
           ((<= (root bst) value)
-           (successor-of-in-or value (right-subtree bst) (if (null? (right-subtree bst)) if-none (if (= (root bst) value) (root (right-subtree bst)) if-none))))
+           (successor-of-in-or value (right-subtree bst) (cond
+                                                           ((and (null? (right-subtree bst)) (null? (left-subtree bst))) ;; terminal case
+                                                                if-none)
+                                                            ((null? (right-subtree bst))
+                                                                (if (= (root (left-subtree bst)) value)
+                                                                    (root bst)
+                                                                    if-none))
+                                                            (else
+                                                             (cond
+                                                                ((= (root bst) value)
+                                                                    (root (right-subtree bst)))
+                                                                ((= (root (right-subtree bst)) value)
+                                                                   (root (right-subtree bst)))
+                                                                (else
+                                                                 if-none))))))
           (else
-           (successor-of-in-or value (left-subtree bst) (if (null? (left-subtree bst)) if-none (if (= (root (left-subtree bst))) (root bst) if-none)))))))
+           (successor-of-in-or value (left-subtree bst) (cond
+                                                          ((and (null? (left-subtree bst)) (null? (right-subtree bst)))
+                                                            if-none)
+                                                          ((null? (left-subtree bst))
+                                                              (if (= (root (right-subtree bst)) value)
+                                                                    (root (right-subtree bst))
+                                                                    if-none))
+                                                          (else
+                                                           (cond
+                                                            ((> (root (left-subtree bst)) value)
+                                                                (root (left-subtree bst)))
+                                                            ((= (root (left-subtree bst)) value)
+                                                               (root bst))
+                                                            (else
+                                                             if-none)))))))))
     
                
