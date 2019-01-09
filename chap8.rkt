@@ -272,16 +272,25 @@
       (else
        7))))
 
-(define parent car)
-(define ifnone cadr)
+(define in-order?
+  (lambda (lst)
+    (cond
+      ((null? lst)
+       #t)
+      ((null? (cdr lst))
+       #t)
+      ((< (car lst) (cadr lst))
+       (in-order? (cdr lst)))
+      (else
+       #f))))
 
-;; FIXME
-(define successor-of-in-or
+
+(define successor-of-in-or-v2
   (lambda (value bst if-none)
     (cond ((empty-tree? bst)
            if-none)
           ((<= (root bst) value)
-           (successor-of-in-or value (right-subtree bst) (cond
+           (successor-of-in-or-v2 value (right-subtree bst) (cond
                                                            ((and (null? (right-subtree bst)) (null? (left-subtree bst))) ;; terminal case
                                                                 if-none)
                                                             ((null? (right-subtree bst))
@@ -297,7 +306,7 @@
                                                                 (else
                                                                  if-none))))))
           (else
-           (successor-of-in-or value (left-subtree bst) (cond
+           (successor-of-in-or-v2 value (left-subtree bst) (cond
                                                           ((and (null? (left-subtree bst)) (null? (right-subtree bst)))
                                                             if-none)
                                                           ((null? (left-subtree bst))
@@ -313,4 +322,39 @@
                                                             (else
                                                              if-none)))))))))
     
-               
+
+
+(define successor-of-in-or
+  (lambda (value bst if-none)
+    (cond
+      ((empty-tree? bst)
+       if-none)
+      ((<= (root bst) value) ;; Look into the right subtree
+       (successor-of-in-or value (right-subtree bst) (cond
+                                              ((null? (right-subtree bst))
+                                               if-none)
+                                              ((< (root (right-subtree bst)) if-none) ;; if the right node is lesser, this is probably not your match.
+                                                if-none)
+                                              (else ;; Your match! 
+                                                (root (right-subtree bst))))))
+      (else
+       ;; Look into the left subtree.
+       ;; Having branched into the left subtree,
+       ;; the original if-none value is no longer relevant,
+       ;; as there is definitely a successor element in the tree.
+       ;; The challenge is to retain the successor element thru if-none parameter.
+       (successor-of-in-or value (left-subtree bst) (cond 
+                                              ((< value (root bst)) ;; 
+                                               (root bst))
+                                              ((null? (left-subtree bst))
+                                               if-none)
+                                              ((< value (root (left-subtree bst)))
+                                               ;; Retain the root node, as it might be a successor.
+                                               (max if-none (root bst)))
+                                              (else
+                                               (max (root bst) (root (left-subtree bst))))))))))
+
+(map (lambda (x) (successor x (list->optimized-bstree (integers-from-to 1 100)) 200)) (integers-from-to 1 100))
+;; (2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 200)
+(in-order? (map (lambda (x) (successor x (list->optimized-bstree (integers-from-to 1 100)) 200)) (integers-from-to 1 100)))
+;; #t
