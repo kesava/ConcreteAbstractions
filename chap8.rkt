@@ -354,7 +354,29 @@
                                               (else
                                                (max (root bst) (root (left-subtree bst))))))))))
 
-(map (lambda (x) (successor x (list->optimized-bstree (integers-from-to 1 100)) 200)) (integers-from-to 1 100))
+;; (map (lambda (x) (successor-of-in-or x (list->optimized-bstree (integers-from-to 1 100)) 200)) (integers-from-to 1 100))
 ;; (2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 200)
-(in-order? (map (lambda (x) (successor x (list->optimized-bstree (integers-from-to 1 100)) 200)) (integers-from-to 1 100)))
+;; (in-order? (map (lambda (x) (successor-of-in-or x (list->optimized-bstree (integers-from-to 1 100)) 200)) (integers-from-to 1 100)))
 ;; #t
+
+
+(define bst-range
+  (lambda (bst lower-bound higher-bound)
+    (define internal
+      (lambda (bst lower higher output)
+        (begin
+        (if (not (empty-tree? bst)) (begin (display (root bst)) (newline))) ;; Writing the root of the bst to output, to make sure we are not visiting parts of the tree that are irrelevant to the bounds.
+        (cond
+          ((empty-tree? bst)
+           '())
+          ((< (root bst) lower-bound)
+            (internal (right-subtree bst) lower higher output))
+          ((> (root bst) higher-bound)
+           (internal (left-subtree bst) lower higher output))
+          (else
+           (append (cons (root bst) '()) (internal (left-subtree bst) lower-bound (root bst) output) (internal (right-subtree bst) (root bst) higher-bound output)))))))
+    (internal bst lower-bound higher-bound '())))
+
+(define bst-range-count
+  (lambda (bst lower higher)
+    (length (bst-range bst lower higher))))
