@@ -139,7 +139,7 @@
 (define shuffle-number
   (lambda (num)
     (let ((deck (integers-from-to 1 num)))
-          (shuffle-number-iter (shuffle deck num) num 1))))
+      (shuffle-number-iter (shuffle deck num) num 1))))
 
 (define sevens
   (lambda (rep)
@@ -162,10 +162,10 @@
         (cons (car lst) (add-to-end (cdr lst) elt)))))
 
 (define reverse-onto
-      (lambda (lst1 lst2)
-        (if (null? lst1)
-            lst2
-            (reverse-onto (cdr lst1) (cons (car lst1) lst2)))))
+  (lambda (lst1 lst2)
+    (if (null? lst1)
+        lst2
+        (reverse-onto (cdr lst1) (cons (car lst1) lst2)))))
 
 (define my-reverse
   (lambda (lst)
@@ -255,9 +255,9 @@
 (define make-list-combiner
   (lambda (fn)
     (lambda (lst1 lst2)
-       (if (and (null? lst1) (null? lst2))
-        '()
-        (cons (fn (car lst1) (car lst2)) (map2 fn (cdr lst1) (cdr lst2)))))))
+      (if (and (null? lst1) (null? lst2))
+          '()
+          (cons (fn (car lst1) (car lst2)) (map2 fn (cdr lst1) (cdr lst2)))))))
 
 
 ;; A Movie Query System
@@ -278,27 +278,27 @@
                                     (pupella maggio)
                                     (armando drancia)))
         (make-movie '(the big easy)
-                         '(jim mcbride)
-                         1987
-                         '((dennis quaid) (ellen barkin)
-                                          (ned beatty)
-                                          (lisa jane persky)
-                                          (john goodman)
-                                          (charles ludlam)))
-             (make-movie '(the godfather)
-                        '(francis ford coppola)
-                         1972
-                         '((marlon brando) (al pacino)
-                                           (james caan)
-                                           (robert duvall)
-                                           (diane keaton)))
-             (make-movie '(boyz n the hood)
-                         '(john singleton)
-                         1991
-                         '((cuba gooding jr.) (ice cube)
-                                              (larry fishburne)
-                                              (tyra ferrell)
-                                              (morris chestnut)))))
+                    '(jim mcbride)
+                    1987
+                    '((dennis quaid) (ellen barkin)
+                                     (ned beatty)
+                                     (lisa jane persky)
+                                     (john goodman)
+                                     (charles ludlam)))
+        (make-movie '(the godfather)
+                    '(francis ford coppola)
+                    1972
+                    '((marlon brando) (al pacino)
+                                      (james caan)
+                                      (robert duvall)
+                                      (diane keaton)))
+        (make-movie '(boyz n the hood)
+                    '(john singleton)
+                    1991
+                    '((cuba gooding jr.) (ice cube)
+                                         (larry fishburne)
+                                         (tyra ferrell)
+                                         (morris chestnut)))))
 
 
 (define make-movies-made-in
@@ -335,10 +335,10 @@
        (display '(i do not understand)))
       ((matches? (pattern (car p/a-list)) query)
        (let ((subs (substitution-in-to-match (pattern (car p/a-list)) query)))
-           (let ((result (apply (action (car p/a-list)) subs)))
-             (if (null? result)
-                 (display '(i do not know))
-                 (display result)))))
+         (let ((result (apply (action (car p/a-list)) subs)))
+           (if (null? result)
+               (display '(i do not know))
+               (display result)))))
       (else
        (answer-by-pattern query (cdr p/a-list))))))
              
@@ -352,12 +352,12 @@
 
 (define movie-p/a-list
   (list (make-pattern/action
-        '(who is the director of ...)
-        (lambda (title)
-          (movies-satisfying
-           our-movie-database
-           (lambda (movie) (equal? (movie-title movie) title))
-           movie-director)))
+         '(who is the director of ...)
+         (lambda (title)
+           (movies-satisfying
+            our-movie-database
+            (lambda (movie) (equal? (movie-title movie) title))
+            movie-director)))
         (make-pattern/action
          '(who acted in ...)
          (lambda (title)
@@ -365,13 +365,27 @@
             our-movie-database
             (lambda (movie) (equal? (movie-title movie) title))
             movie-actors)))
-         (make-pattern/action
-        '(what movies were made in ...)
-        (lambda (year)
-          (movies-satisfying
-           our-movie-database
-           (lambda (movie) (= (movie-year-made movie) (car year)))
-           movie-title)))))
+        (make-pattern/action
+         '(what (movies movie) (was were) made (before in after) ...)
+         (lambda (matches)
+           (let ((range (caddr matches)) (year (cadddr matches)))
+           (cond
+             ((equal? range 'in)
+              (movies-satisfying
+               our-movie-database
+               (lambda (movie) (= (movie-year-made movie) (car year)))
+               movie-title))
+             ((equal? range 'before)
+              (movies-satisfying
+               our-movie-database
+               (lambda (movie) (< (movie-year-made movie) (car year)))
+               movie-title))
+             ((equal? range 'after)
+              (movies-satisfying
+               our-movie-database
+               (lambda (movie) (> (movie-year-made movie) (car year)))
+               movie-title))
+             ))))))
 
 (define matches?
   (lambda (pattern question)
@@ -382,21 +396,37 @@
        #f)
       ((equal? (car pattern) '...)
        #t)
-      ((equal? (car pattern) (car question))
-       (matches? (cdr pattern) (cdr question)))
+      ((list? (car pattern))
+       (if (null? (member (car question) (car pattern)))
+           #f
+            (matches? (cdr pattern) (cdr question))))
+      ((not (list? (car pattern)))
+       (if (equal? (car pattern) (car question))
+           (matches? (cdr pattern) (cdr question))
+           #f))
       (else
        #f))))
 
 
-(define substitution-in-to-match
-  (lambda (pattern question)
+(define substitution-in-to-match-internal
+  (lambda (pattern question accumulator)
     (cond
       ((null? pattern)
-       '())
+       accumulator)
       ((equal? (car pattern) '...)
-       (cons question '()))
-      ((equal? (car pattern) (car question))
-       (substitution-in-to-match (cdr pattern) (cdr question)))
+       (cons question accumulator))
+      ((list? (car pattern))
+       (if (null? (member (car question) (car pattern)))
+           #f
+           (substitution-in-to-match-internal (cdr pattern) (cdr question) (cons (car question) accumulator))))
+      ((not (list? (car pattern)))
+       (if (equal? (car pattern) (car question))
+           (substitution-in-to-match-internal (cdr pattern) (cdr question) accumulator)
+           #f))
       (else
        '()))))
-      
+
+(define substitution-in-to-match
+  (lambda (pattern question)
+    (reverse (substitution-in-to-match-internal pattern question '()))))
+   
