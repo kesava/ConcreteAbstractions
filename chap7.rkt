@@ -258,3 +258,145 @@
        (if (and (null? lst1) (null? lst2))
         '()
         (cons (fn (car lst1) (car lst2)) (map2 fn (cdr lst1) (cdr lst2)))))))
+
+
+;; A Movie Query System
+(define make-movie
+  (lambda (title director year-made actors)
+    (list title director year-made actors)))
+(define movie-title car)
+(define movie-director cadr)
+(define movie-year-made caddr)
+(define movie-actors cadddr)
+
+
+(define our-movie-database
+  (list (make-movie '(amarcord)
+                    '(federico fellini)
+                    1974
+                    '((magali noel) (bruno zanin)
+                                    (pupella maggio)
+                                    (armando drancia)))
+        (make-movie '(the big easy)
+                         '(jim mcbride)
+                         1987
+                         '((dennis quaid) (ellen barkin)
+                                          (ned beatty)
+                                          (lisa jane persky)
+                                          (john goodman)
+                                          (charles ludlam)))
+             (make-movie '(the godfather)
+                        '(francis ford coppola)
+                         1972
+                         '((marlon brando) (al pacino)
+                                           (james caan)
+                                           (robert duvall)
+                                           (diane keaton)))
+             (make-movie '(boyz n the hood)
+                         '(john singleton)
+                         1991
+                         '((cuba gooding jr.) (ice cube)
+                                              (larry fishburne)
+                                              (tyra ferrell)
+                                              (morris chestnut)))))
+
+
+(define make-movies-made-in
+  (lambda (db key)
+    (lambda (value)
+      (map movie-title (filter (lambda (movie) (equal? (key movie) value)) db)))))
+
+(define movies-satisfying
+  (lambda (db filterFn keyFn)
+    (map keyFn (filter filterFn db))))
+
+(define query-loop
+  (lambda ()
+    (newline)
+    (newline)
+    (let ((query (read)))
+      (cond ((exit? query) (display '(see you later)))
+            ;; movie-p/a-list is the list of the
+            ;; pattern/action pairs
+            (else (answer-by-pattern query movie-p/a-list)
+                  (query-loop))))))
+(define exit?
+  (lambda (query)
+    (member query '((bye)
+                    (quit)
+                    (exit)
+                    (so long)
+                    (farewell)))))
+
+(define answer-by-pattern
+  (lambda (query p/a-list)
+    (cond
+      ((null? p/a-list)
+       (display '(i do not understand)))
+      ((matches? (pattern (car p/a-list)) query)
+       (let ((subs (substitution-in-to-match (pattern (car p/a-list)) query)))
+           (let ((result (apply (action (car p/a-list)) subs)))
+             (if (null? result)
+                 (display '(i do not know))
+                 (display result)))))
+      (else
+       (answer-by-pattern query (cdr p/a-list))))))
+             
+
+(define make-pattern/action
+  (lambda (pattern action)
+    (cons pattern action)))
+
+(define pattern car)
+(define action cdr)
+
+(define movie-p/a-list
+  (list (make-pattern/action
+        '(who is the director of ...)
+        (lambda (title)
+          (movies-satisfying
+           our-movie-database
+           (lambda (movie) (equal? (movie-title movie) title))
+           movie-director)))
+        (make-pattern/action
+         '(who acted in ...)
+         (lambda (title)
+           (movies-satisfying
+            our-movie-database
+            (lambda (movie) (equal? (movie-title movie) title))
+            movie-actors)))
+         (make-pattern/action
+        '(what movies were made in ...)
+        (lambda (year)
+          (movies-satisfying
+           our-movie-database
+           (lambda (movie) (= (movie-year-made movie) (car year)))
+           movie-title)))))
+
+(define matches?
+  (lambda (pattern question)
+    (cond
+      ((and (null? pattern) (null? question))
+       #f)
+      ((null? question)
+       #f)
+      ((equal? (car pattern) '...)
+       #t)
+      ((equal? (car pattern) (car question))
+       (matches? (cdr pattern) (cdr question)))
+      (else
+       #f))))
+
+
+(define substitution-in-to-match
+  (lambda (pattern question)
+    (cond
+      ((null? pattern)
+       '())
+      ((equal? (car pattern) '...)
+       (cons question '()))
+      ((equal? (car pattern) (car question))
+       (substitution-in-to-match (cdr pattern) (cdr question)))
+      (else
+       '()))))
+      

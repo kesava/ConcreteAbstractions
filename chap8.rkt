@@ -364,8 +364,6 @@
   (lambda (bst lower-bound higher-bound)
     (define internal
       (lambda (bst lower higher output)
-        (begin
-        (if (not (empty-tree? bst)) (begin (display (root bst)) (newline))) ;; Writing the root of the bst to output, to make sure we are not visiting parts of the tree that are irrelevant to the bounds.
         (cond
           ((empty-tree? bst)
            '())
@@ -374,7 +372,7 @@
           ((> (root bst) higher-bound)
            (internal (left-subtree bst) lower higher output))
           (else
-           (append (cons (root bst) '()) (internal (left-subtree bst) lower-bound (root bst) output) (internal (right-subtree bst) (root bst) higher-bound output)))))))
+           (append (cons (root bst) '()) (internal (left-subtree bst) lower-bound (root bst) output) (internal (right-subtree bst) (root bst) higher-bound output))))))
     (internal bst lower-bound higher-bound '())))
 
 (define bst-range-count
