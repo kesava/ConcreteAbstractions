@@ -21,18 +21,16 @@
 
 (define sequence-with-from-by
   (lambda (len start by)
-    (let ((remlen len))
       (lambda (op)
         (cond
           ((equal? op 'empty-sequence)
-           (= len 0))
+           (<= len 0))
           ((equal? op 'head)
            start)
           ((equal? op 'tail)
            (sequence-with-from-by (- len 1) (+ start by) by))
           (else
-           (error "illegal seq")))))))
-
+           (error "illegal seq"))))))
 (define sequence-from-to-2
   (lambda (low high)
     (sequence-with-from-by (+ (- high low) 1) low 1)))
