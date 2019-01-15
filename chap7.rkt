@@ -369,22 +369,22 @@
          '(what (movies movie) (was were) made (before in after) ...)
          (lambda (matches)
            (let ((range (caddr matches)) (year (cadddr matches)))
-           (cond
-             ((equal? range 'in)
-              (movies-satisfying
-               our-movie-database
-               (lambda (movie) (= (movie-year-made movie) (car year)))
-               movie-title))
-             ((equal? range 'before)
-              (movies-satisfying
-               our-movie-database
-               (lambda (movie) (< (movie-year-made movie) (car year)))
-               movie-title))
-             ((equal? range 'after)
-              (movies-satisfying
-               our-movie-database
-               (lambda (movie) (> (movie-year-made movie) (car year)))
-               movie-title))
+             (cond
+               ((equal? range 'in)
+                (movies-satisfying
+                 our-movie-database
+                 (lambda (movie) (= (movie-year-made movie) (car year)))
+                 movie-title))
+               ((equal? range 'before)
+                (movies-satisfying
+                 our-movie-database
+                 (lambda (movie) (< (movie-year-made movie) (car year)))
+                 movie-title))
+               ((equal? range 'after)
+                (movies-satisfying
+                 our-movie-database
+                 (lambda (movie) (> (movie-year-made movie) (car year)))
+                 movie-title))
              ))))))
 
 (define matches?
