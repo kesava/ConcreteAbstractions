@@ -6,6 +6,7 @@
 ;; +
 ;; 23
 ;; -
+;; done
 ;; result: -1
 
 (define (read-eval-print)
@@ -20,7 +21,7 @@
           ((eq? r 'done)
            (begin
              (display "Final result: ")
-             (write (car list))
+             (write list)
              (newline)
              (display "bye!")))
           ((or (eq? r '+) (eq? r '-) (eq? r '*) (eq? r '/))
