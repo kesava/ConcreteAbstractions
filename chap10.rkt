@@ -62,7 +62,8 @@
     (cond
       ((or (number? pmse)
            (string? pmse)
-           (boolean? pmse))
+           (boolean? pmse)
+           (null? pmse))
        #t)
       ((name? pmse) #t)
       ((list? pmse)
@@ -104,4 +105,15 @@
    (make-pattern/action '(...)
                         (lambda (pmses)
                           ((all-are syntax-ok?) pmses)))))
-                               
+
+
+(define repl-syntax
+  (lambda ()
+    (display "; Enter a Micro-Scheme expression: ")
+    (newline)
+    (let ((expression (read)))
+        (display "The syntax is ")
+        (write (syntax-ok? expression))
+        (newline))
+    (repl-syntax)))
+          
