@@ -1,5 +1,13 @@
 ;; Stacker from Beautiful Racket by Matthew Butterick
 
+;; 4
+;; 8
+;; 12
+;; +
+;; 23
+;; -
+;; result: -1
+
 (define (read-eval-print)
   (display "read-eval-print here")
   (newline)
@@ -12,13 +20,10 @@
           ((eq? r 'done)
            (begin
              (display "Final result: ")
-             (write list)
+             (write (car list))
              (newline)
              (display "bye!")))
           ((or (eq? r '+) (eq? r '-) (eq? r '*) (eq? r '/))
-           (begin
-             (write (eval (cons r list) (scheme-report-environment 5)))
-             (newline)
-             (repl-internal (cons (eval (cons r list) (scheme-report-environment 5)) '()))))
+            (repl-internal (cons (apply (eval r (scheme-report-environment 5)) list) '())))
           (else (repl-internal (cons r list)))))))
   (repl-internal '()))
