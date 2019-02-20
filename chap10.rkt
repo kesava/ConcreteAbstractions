@@ -35,6 +35,8 @@
     (cond
       ((eq? (car pattern) (car pmse))
        (= (length (cdr pattern)) (length (cdr pmse))))
+      ((and (equal? (car pattern) '(...)) (list? pmse))
+       #t)
       (else #f))))
 
 (define substitutions-in-to-match
@@ -45,7 +47,9 @@
           ((null? pattern) acc)
           ((eq? (car pattern) '_)
            (subs-internal (cdr pattern) (cdr pmse) (cons (car pmse) acc))))))
-    (reverse (subs-internal (cdr pattern) (cdr pmse) '()))))
+    (if (null? (cdr pattern))
+        (cons pmse '())
+        (reverse (subs-internal (cdr pattern) (cdr pmse) '())))))
 
 (define syntax-ok?
   (lambda (pmse)
@@ -123,9 +127,9 @@
     (define loop
       (lambda (p/a-list)
         (cond
-          ((null? p/a-list) (error "No valid expression"))
-          ((matches? (car p/a-list) (expression))
-           (apply (action (car p/a-list)) (substitutions-in-to-match (pattern (car p/a-list)) (expression))))
+          ((null? p/a-list) (display "No valid expression"))
+          ((matches? (car p/a-list) expression)
+           (apply (action (car p/a-list)) (substitutions-in-to-match (pattern (car p/a-list)) expression)))
           (else (loop (cdr p/a-list)))))) ;; end of loop
     (cond
        ((name? expression) (make-name-ast expression))
@@ -166,6 +170,29 @@
   (lambda (value name ast)
     ((ast 'substitute-for) value name)))
 
+(define pow
+  (lambda (base power)
+    (define pow-gen
+      (lambda (base power acc)
+        (if (= power 1)
+            acc
+            (pow-gen base (- power 1) (* acc base)))))
+    (pow-gen base power base)))
+
+(define incr  (lambda (x) (+ x 1)))
+(define ln (lambda (x) (/ (log x) (log 10))))
+
+(define look-up-value
+       (lambda (name)
+         (cond ((equal? name '+) +)
+               ((equal? name '*) *)
+               ((equal? name '-) -)
+               ((equal? name '/) /)
+               ((equal? name '^) pow)
+               ((equal? name '++) incr)
+               ((equal? name 'ln) ln)
+               (else (display "Unrecognized name")))))
+
 (define make-name-ast
   (lambda (name)
     (define the-ast
@@ -177,8 +204,27 @@
              (if (equal? name name-to-substitute-for)
                  (make-constant-ast value)
                  the-ast)))
-          (else (error "unknown operation on a name ASt")))))
+          (else (display "unknown operation on a name ASt")))))
     the-ast))
 
-   
+(define make-constant-ast
+  (lambda (value)
+    (define the-ast
+      (lambda (message)
+        (cond
+          ((equal? message 'evaluate) value)
+          ((equal? message 'substitute-for)
+           (lambda (value name)
+             the-ast))
+          (else (display "Unknown operation on constant AST")))))
+    the-ast))
+
+(define make-application-ast
+  (lambda (operator-ast operand-asts)
+    (lambda (message)
+      (cond
+        ((equal? message 'evaluate)
+         (let ((procedure (evaluate operator-ast))
+               (arguments (map evaluate operand-asts)))
+           (apply procedure arguments)))))))
           
