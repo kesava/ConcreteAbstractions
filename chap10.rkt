@@ -116,4 +116,69 @@
         (write (syntax-ok? expression))
         (newline))
     (repl-syntax)))
+      
+;;; parse and evaluate
+(define parse
+  (lambda (expression)
+    (define loop
+      (lambda (p/a-list)
+        (cond
+          ((null? p/a-list) (error "No valid expression"))
+          ((matches? (car p/a-list) (expression))
+           (apply (action (car p/a-list)) (substitutions-in-to-match (pattern (car p/a-list)) (expression))))
+          (else (loop (cdr p/a-list)))))) ;; end of loop
+    (cond
+       ((name? expression) (make-name-ast expression))
+       ((or (number? expression)
+            (string? expression)
+            (boolean? expression))
+        (make-constant-ast expression))
+       ((list? expression)
+        (loop micro-scheme-parsing-p/a-list))
+       (else (error "not a valid expression")))))
+
+(define micro-scheme-parsing-p/a-list
+  (list
+   (make-pattern/action '(if _ _ _)
+                       (lambda (test if-true if-false)
+                         (make-conditional-ast (parse test)
+                                               (parse if-true)
+                                               (parse if-false))))
+   (make-pattern/action '(lambda _ _)
+                        (lambda (parameters body)
+                          (if (and (list? parameters)
+                                   ((all-are name?) parameters))
+                              (make-abstraction-ast parameters (parse body))
+                              (error "invalid expression" (list 'lambda parameters body)))))
+   (make-pattern/action '(quote _)
+                        (lambda (value)
+                          (make-constant-ast value)))
+   (make-pattern/action '(...)
+                        (lambda (operator&operands)
+                          (let ((asts (map parse operator&operands)))
+                            (make-application-ast (car asts) (cdr asts)))))))
+
+(define evaluate
+  (lambda (ast)
+    (ast 'evaluate)))
+
+(define substitute-for-in
+  (lambda (value name ast)
+    ((ast 'substitute-for) value name)))
+
+(define make-name-ast
+  (lambda (name)
+    (define the-ast
+      (lambda (message)
+        (cond
+          ((equal? message 'evaluate) (look-up-value name))
+          ((equal? message 'substitute-for)
+           (lambda (value name-to-substitute-for)
+             (if (equal? name name-to-substitute-for)
+                 (make-constant-ast value)
+                 the-ast)))
+          (else (error "unknown operation on a name ASt")))))
+    the-ast))
+
+   
           
