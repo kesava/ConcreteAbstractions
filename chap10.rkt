@@ -32,12 +32,15 @@
 
 (define matches?
   (lambda (pattern pmse)
+    (begin
+      ;(display (car (car pattern)))
+      ;(display "\n")
     (cond
-      ((eq? (car pattern) (car pmse))
-       (= (length (cdr pattern)) (length (cdr pmse))))
+      ((eq? (car (car pattern)) (car pmse))
+       (= (length (cdr (car pattern))) (length (cdr pmse))))
       ((and (equal? (car pattern) '(...)) (list? pmse))
        #t)
-      (else #f))))
+      (else #f)))))
 
 (define substitutions-in-to-match
   (lambda (pattern pmse)
@@ -126,12 +129,18 @@
   (lambda (expression)
     (define loop
       (lambda (p/a-list)
+        (begin
+         ;(display (car p/a-list))
+         ;(display "\n")
         (cond
           ((null? p/a-list) (display "No valid expression"))
           ((matches? (car p/a-list) expression)
            (apply (action (car p/a-list)) (substitutions-in-to-match (pattern (car p/a-list)) expression)))
-          (else (loop (cdr p/a-list)))))) ;; end of loop
-    (cond
+          (else (loop (cdr p/a-list))))))) ;; end of loop
+    (begin
+      ;(display expression)
+      ;(display "\n")
+      (cond
        ((name? expression) (make-name-ast expression))
        ((or (number? expression)
             (string? expression)
@@ -139,7 +148,7 @@
         (make-constant-ast expression))
        ((list? expression)
         (loop micro-scheme-parsing-p/a-list))
-       (else (error "not a valid expression")))))
+       (else (display "not a valid expression"))))))
 
 (define micro-scheme-parsing-p/a-list
   (list
@@ -191,6 +200,9 @@
                ((equal? name '^) pow)
                ((equal? name '++) incr)
                ((equal? name 'ln) ln)
+               ((equal? name '<) <)
+               ((equal? name '>) >)
+               ((equal? name '==) =)
                (else (display "Unrecognized name")))))
 
 (define make-name-ast
@@ -219,6 +231,22 @@
           (else (display "Unknown operation on constant AST")))))
     the-ast))
 
+(define make-conditional-ast
+  (lambda (test-ast if-true-ast if-false-ast)
+    (lambda (message)
+      (cond
+        ((equal? message 'evaluate)
+         (if (evaluate test-ast)
+             (evaluate if-true-ast)
+             (evaluate if-false-ast)))
+        ((equal? message 'substitute-for)
+         (make-conditional-ast
+          (substitution-for-in value name test-ast)
+          (substitution-for-in value name if-true-ast)
+          (substitution-for-in value name if-false-ast)))
+        (else (display "unknown operation on conditional AST"))))))
+                 
+      
 (define make-application-ast
   (lambda (operator-ast operand-asts)
     (lambda (message)
@@ -226,5 +254,44 @@
         ((equal? message 'evaluate)
          (let ((procedure (evaluate operator-ast))
                (arguments (map evaluate operand-asts)))
-           (apply procedure arguments)))))))
+           (apply procedure arguments)))
+        ((equal? message 'substitute-for)
+         (lambda (value name)
+           (make-application-ast
+            (substitute-for-in value name operator-ast)
+            (map (lambda (operand-ast) (substitute-for-in value name operand-ast)) operand-asts))))
+        (else (display "unknown message for opplication AST"))))))
+
+(define make-abstraction-ast
+ (lambda (parameters body-ast)
+   (define the-ast
+     (lambda (message)
+       (cond
+         ((equal? message 'evaluate)
+          (make-procedure parameters body-ast))
+         ((equal? message 'substitute-for)
+          (lambda (value name)
+            (if (member name parameters)
+                the-ast
+                (make-abstraction-ast
+                 parameters
+                 (substitute-for-in value name body-ast)))))
+         (else (display "Illegal operation on abstraction AST")))))
+   the-ast))
+
+(define make-procedure
+  (lambda (parameters body-ast)
+    (lambda arguments
+      (define loop
+        (lambda (parameters arguments body-ast)
+          (cond
+            ((null? parameters)
+             (if (null? parameters)
+                 (evaluate body-ast)
+                 (display "too many args")))
+            ((null? arguments)
+             (display "too few arguments"))
+            (else
+             (loop (cdr parameters) (cdr arguments) (substitute-for-in (car arguments) (car parameters) body-ast))))))
+      (loop parameters arguments body-ast))))
           
