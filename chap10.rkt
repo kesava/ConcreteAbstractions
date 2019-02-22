@@ -18,6 +18,8 @@
        #t)
       (else #f))))
 
+
+
 ;; <digit> ==> 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ;; <unsinged-integer> ==> (<digit>(<digit>*))
 ;; <sign> ==> - | +
@@ -166,14 +168,21 @@
    (make-pattern/action '(quote _)
                         (lambda (value)
                           (make-constant-ast value)))
+   (make-pattern/action '(let _ _)
+                        (lambda (bindings body)
+                          (make-let-expression-ast (map parse bindings) (parse body))))
    (make-pattern/action '(...)
                         (lambda (operator&operands)
                           (let ((asts (map parse operator&operands)))
-                            (make-application-ast (car asts) (cdr asts)))))))
+                              (make-application-ast (car asts) (cdr asts)))))))
 
 (define evaluate
   (lambda (ast)
     (ast 'evaluate)))
+
+(define evaluate-in
+  (lambda (ast env)
+    ((ast 'evaluate-in) env)))
 
 (define substitute-for-in
   (lambda (value name ast)
@@ -191,7 +200,56 @@
 (define incr  (lambda (x) (+ x 1)))
 (define ln (lambda (x) (/ (log x) (log 10))))
 
+(define make-pair
+  (lambda (var value)
+     (cons var (cons value '()))))
+
+(define update-pair
+  (lambda (list var value)
+    (cond
+      ((null? list) (cons (make-pair var value) '()))
+      ((eq? (car (car list)) var) (cons (make-pair var value) (cdr list)))
+      (else (cons (car list) (update-pair (cdr list) var value ))))))
+
+(define get-value
+  (lambda (list var)
+    (cond
+      ((null? list) '())
+      ((eq? (car (car list)) var) (car (cdr (car list))))
+      (else (get-value (cdr list) var)))))
+
+;; Format of table
+;; (list of variable-value pairs)
+;; '((x 0) (y 3) (z 9))
+(define variable-lookup
+  (lambda (lookuptable)
+    (lambda (message)
+      (cond
+        ((eq? message 'set)
+         (lambda (name value)
+           (variable-lookup (update-pair lookuptable name value))))
+        ((eq? message 'get)
+         (lambda (name)
+           (get-value lookuptable name)))
+        ((eq? message 'list) lookuptable)
+        (else (display "unknown operation on lookup table"))))))
+
+(define make-env
+  (lambda ()
+  (variable-lookup '())))
+
+(define reduce-env
+  (lambda (env list)
+    (cond
+      ((null? list)
+       env)
+      (else (reduce-env ((env 'set) (car (car list)) (car (cdr (car list)))) (cdr list))))))
+
 (define look-up-value
+  (lambda (name env)
+    (env 'get) name))
+
+(define look-up-procedure
        (lambda (name)
          (cond ((equal? name '+) +)
                ((equal? name '*) *)
@@ -203,14 +261,15 @@
                ((equal? name '<) <)
                ((equal? name '>) >)
                ((equal? name '==) =)
-               (else (display "Unrecognized name")))))
+               (else name))))
+              ; (else (((variable-lookup env) 'get) name)))))
 
 (define make-name-ast
   (lambda (name)
     (define the-ast
       (lambda (message)
-        (cond
-          ((equal? message 'evaluate) (look-up-value name))
+        (cond           
+          ((equal? message 'evaluate) (look-up-procedure name))
           ((equal? message 'substitute-for)
            (lambda (value name-to-substitute-for)
              (if (equal? name name-to-substitute-for)
@@ -255,6 +314,9 @@
          (let ((procedure (evaluate operator-ast))
                (arguments (map evaluate operand-asts)))
            (apply procedure arguments)))
+        ((equal? message 'evaluate-in)
+          (lambda (env)
+            ((env 'set) (evaluate operator-ast) (evaluate (car operand-asts)))))
         ((equal? message 'substitute-for)
          (lambda (value name)
            (make-application-ast
@@ -294,4 +356,6 @@
             (else
              (loop (cdr parameters) (cdr arguments) (substitute-for-in (car arguments) (car parameters) body-ast))))))
       (loop parameters arguments body-ast))))
-          
+
+           
+         
