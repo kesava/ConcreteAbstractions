@@ -364,7 +364,7 @@
         ((equal? message 'evaluate-in)
           (lambda (env)
             (begin
-              (print (cons (operator-ast 'print) '()))
+              (print (cons operator-ast '()))
             (cond
               ((procedure? (evaluate operator-ast))
                 (let ((procedure (evaluate operator-ast))
@@ -405,17 +405,18 @@
 (define make-procedure
   (lambda (parameters body-ast)
     (begin
-      (display "parameters: ")
-      (display parameters)
+      ;(display "parameters: ")
+      ;(display parameters)
     (lambda arguments
       (define loop
         (lambda (parameters arguments body-ast)
           (begin
-            (display "\n arguments: ")
-            (display arguments)
+            ;(display "\n parameers ")
+            ;(display parameters)
           (cond
             ((null? parameters)
              (if (null? parameters)
+                 ;body-ast
                  (evaluate body-ast)
                  (display "too many args")))
             ((null? arguments)
@@ -458,10 +459,10 @@
              (let ((local-env (loop bindings-asts env)))
                (let (( local-vars (map car (local-env 'list))) (local-vals (map cadr (local-env 'list))))
                  (begin
-                   (print (local-env 'list))
-                   (print local-vars)
-                   (print local-vals)
-                   (display (make-procedure local-vars body-ast))
+                   ;(print (local-env 'list))
+                   ;(print local-vars)
+                   ;(print local-vals)
+                   ;(display (make-procedure local-vars body-ast))
                    (apply (make-procedure local-vars body-ast) local-vals))))))
         ((eq? message 'substitute-for)
           (lambda (value name)
