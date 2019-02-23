@@ -18,8 +18,6 @@
        #t)
       (else #f))))
 
-
-
 ;; <digit> ==> 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ;; <unsinged-integer> ==> (<digit>(<digit>*))
 ;; <sign> ==> - | +
@@ -170,11 +168,14 @@
                           (make-constant-ast value)))
    (make-pattern/action '(let _ _)
                         (lambda (bindings body)
-                          (make-let-expression-ast (map parse bindings) (parse body))))
+                          (define split-binding-as-ast (lambda (binding) (make-binding-ast (make-var-name-ast (car binding)) (parse (car (cdr binding))))))
+                          (make-let-expression-ast (map split-binding-as-ast bindings) (parse body))))
    (make-pattern/action '(...)
                         (lambda (operator&operands)
                           (let ((asts (map parse operator&operands)))
-                              (make-application-ast (car asts) (cdr asts)))))))
+                            (begin
+                              ;(print asts)
+                              (make-application-ast (car asts) (cdr asts))))))))
 
 (define evaluate
   (lambda (ast)
@@ -187,6 +188,19 @@
 (define substitute-for-in
   (lambda (value name ast)
     ((ast 'substitute-for) value name)))
+
+(define print
+  (lambda (args)
+    (if (list? args)
+        (cond
+          ((null? args) (display "\n"))
+          (else
+           (begin
+             (if (procedure? (car args))
+                 (print (car args))
+                 (display (car args)))
+             (print (cdr args)))))
+    (args 'print))))
 
 (define pow
   (lambda (base power)
@@ -250,7 +264,7 @@
     (env 'get) name))
 
 (define look-up-procedure
-       (lambda (name)
+       (lambda (name . env)
          (cond ((equal? name '+) +)
                ((equal? name '*) *)
                ((equal? name '-) -)
@@ -261,8 +275,26 @@
                ((equal? name '<) <)
                ((equal? name '>) >)
                ((equal? name '==) =)
-               (else name))))
-              ; (else (((variable-lookup env) 'get) name)))))
+               (else (begin
+                       ;(display "Unsupported procedure")
+                       #f)))))
+               ;(else name))))
+               ;(else (((variable-lookup env) 'get) name)))))
+
+(define supported-procedure? look-up-procedure)
+
+(define make-var-name-ast
+ (lambda (varname)
+   (lambda (message)
+     (cond
+       ((equal? message 'print)
+        (begin
+          (print (cons "<Variable-AST -> " (cons varname '())))))
+       ((equal? message 'evaluate)
+        varname)
+       ((equal? message 'evaluate-in)
+        (lambda (env)
+          ((env 'get) varname)))))))
 
 (define make-name-ast
   (lambda (name)
@@ -270,6 +302,12 @@
       (lambda (message)
         (cond           
           ((equal? message 'evaluate) (look-up-procedure name))
+          ((equal? message 'evaluate-in)
+           (lambda (env)
+             (evaluate the-ast)))
+          ((equal? message 'print)
+           (begin
+             (print (cons "<Name-AST -> " (cons name '())))))
           ((equal? message 'substitute-for)
            (lambda (value name-to-substitute-for)
              (if (equal? name name-to-substitute-for)
@@ -283,7 +321,13 @@
     (define the-ast
       (lambda (message)
         (cond
+          ((equal? message 'print)
+           (begin
+             (print (cons "<Constant AST -> " (cons value '())))))
           ((equal? message 'evaluate) value)
+          ((equal? message 'evaluate-in)
+           (lambda (env)
+             the-ast))
           ((equal? message 'substitute-for)
            (lambda (value name)
              the-ast))
@@ -294,6 +338,8 @@
   (lambda (test-ast if-true-ast if-false-ast)
     (lambda (message)
       (cond
+        ((equal? message 'print)
+         (print (cons "<Conditional AST -> " (cons test-ast (cons if-true-ast (cons if-false-ast '()))))))
         ((equal? message 'evaluate)
          (if (evaluate test-ast)
              (evaluate if-true-ast)
@@ -303,20 +349,30 @@
           (substitution-for-in value name test-ast)
           (substitution-for-in value name if-true-ast)
           (substitution-for-in value name if-false-ast)))
-        (else (display "unknown operation on conditional AST"))))))
-                 
+        (else (display "unknown operation on conditional AST"))))))                
       
 (define make-application-ast
   (lambda (operator-ast operand-asts)
     (lambda (message)
       (cond
+        ((equal? message 'print)
+         (print (cons "<Application AST -> operator-ast: " (cons operator-ast (cons "; operand-asts: " (cons operand-asts (cons "\n" '())))))))
         ((equal? message 'evaluate)
          (let ((procedure (evaluate operator-ast))
                (arguments (map evaluate operand-asts)))
            (apply procedure arguments)))
         ((equal? message 'evaluate-in)
           (lambda (env)
-            ((env 'set) (evaluate operator-ast) (evaluate (car operand-asts)))))
+            (begin
+              (print (cons (operator-ast 'print) '()))
+            (cond
+              ((procedure? (evaluate operator-ast))
+                (let ((procedure (evaluate operator-ast))
+                      (arguments (map evaluate operand-asts)))
+                  (apply procedure arguments)))
+              (else
+               
+               ((env 'set) (evaluate operator-ast) (evaluate (car operand-asts))))))))
         ((equal? message 'substitute-for)
          (lambda (value name)
            (make-application-ast
@@ -329,8 +385,13 @@
    (define the-ast
      (lambda (message)
        (cond
+         ((equal? message 'print)
+          (print (cons "<Abstraction AST -> parameters: " (cons parameters (cons " body-ast: " (cons body-ast '()))))))
          ((equal? message 'evaluate)
           (make-procedure parameters body-ast))
+         ((equal? messsage 'evaluate-in)
+          (lambda (env)
+            (evaluate the-ast)))
          ((equal? message 'substitute-for)
           (lambda (value name)
             (if (member name parameters)
@@ -343,9 +404,15 @@
 
 (define make-procedure
   (lambda (parameters body-ast)
+    (begin
+      (display "parameters: ")
+      (display parameters)
     (lambda arguments
       (define loop
         (lambda (parameters arguments body-ast)
+          (begin
+            (display "\n arguments: ")
+            (display arguments)
           (cond
             ((null? parameters)
              (if (null? parameters)
@@ -354,8 +421,55 @@
             ((null? arguments)
              (display "too few arguments"))
             (else
-             (loop (cdr parameters) (cdr arguments) (substitute-for-in (car arguments) (car parameters) body-ast))))))
-      (loop parameters arguments body-ast))))
+             (loop (cdr parameters) (cdr arguments) (substitute-for-in (car arguments) (car parameters) body-ast)))))))
+      (loop parameters arguments body-ast)))))
 
-           
+(define make-binding-ast
+  (lambda (var-name-ast body-ast)
+    ;(let ((var-name-ast (car (car pair))) (body-ast (car (cdr (car pair)))))
+    (lambda (message)
+      (cond
+        ((eq? message 'print)
+         (print (cons "< Binding AST -> " (cons var-name-ast (cons body-ast '())))))
+        ((eq? message 'evaluate-in)
+          (lambda (env)
+           (begin
+             ;(print (env 'list))
+             ;(print var-name-ast)
+           ((env 'set) (evaluate var-name-ast) (evaluate body-ast)))))
+        (else (print "Unknown Operation on Binding AST"))))))
+
+
+(define make-let-expression-ast
+  (lambda (bindings-asts body-ast)
+    (lambda (message)
+      (cond
+        ((eq? message 'print)
+         (print (cons "< LET expression AST -> " (cons bindings-asts (cons "Body : " (cons body-ast '()))))))
+        ((eq? message 'evaluate-in)
+         (lambda (env)
+           (define loop
+             (lambda (bindings env)
+               (if (null? bindings)
+                   env
+                   (begin
+                     ;(print (env 'list))
+                     (loop (cdr bindings) (evaluate-in (car bindings) env))))))
+             (let ((local-env (loop bindings-asts env)))
+               (let (( local-vars (map car (local-env 'list))) (local-vals (map cadr (local-env 'list))))
+                 (begin
+                   (print (local-env 'list))
+                   (print local-vars)
+                   (print local-vals)
+                   (display (make-procedure local-vars body-ast))
+                   (apply (make-procedure local-vars body-ast) local-vals))))))
+        ((eq? message 'substitute-for)
+          (lambda (value name)
+            (if (member name parameters)
+                body-ast
+                (make-abstraction-ast
+                 parameters
+                 (substitute-for-in value name body-ast)))))))))
          
+           
+                            
