@@ -1,3 +1,5 @@
+(#%require racket/trace)
+
 (define keyword?
   (lambda (arg)
     (cond
@@ -360,7 +362,11 @@
         ((equal? message 'evaluate)
          (let ((procedure (evaluate operator-ast))
                (arguments (map evaluate operand-asts)))
-           (apply procedure arguments)))
+           (begin
+             (display "\neval: ")
+             (display procedure)
+             (print arguments)
+           (apply procedure arguments))))
         ((equal? message 'evaluate-in)
           (lambda (env)
             (begin
@@ -411,8 +417,9 @@
       (define loop
         (lambda (parameters arguments body-ast)
           (begin
-            ;(display "\n parameers ")
-            ;(display parameters)
+            (display "\n parameers ")
+            (display parameters)
+            (print body-ast)
           (cond
             ((null? parameters)
              (if (null? parameters)
@@ -432,12 +439,26 @@
       (cond
         ((eq? message 'print)
          (print (cons "< Binding AST -> " (cons var-name-ast (cons body-ast '())))))
+        ((eq? message 'varname)
+         (evaluate var-name-ast))
         ((eq? message 'evaluate-in)
           (lambda (env)
            (begin
-             ;(print (env 'list))
-             ;(print var-name-ast)
+             (print (env 'list))
+             (print var-name-ast)
+             (print body-ast)
            ((env 'set) (evaluate var-name-ast) (evaluate body-ast)))))
+        ((eq? message 'substitute-for)
+         (lambda (value name-to-substitute-for)
+                  (begin
+           (display "\n<< Substitute Binding AST : ")
+           (display value)
+           (print var-name-ast)
+           (display  name-to-substitute-for)
+           (print body-ast)
+           (if (eq? (evaluate var-name-ast) name-to-substitute-for)
+               (make-binding-ast var-name-ast body-ast)
+               (make-binding-ast var-name-ast (substitute-for-in value name-to-substitute-for body-ast))))))
         (else (print "Unknown Operation on Binding AST"))))))
 
 
@@ -447,6 +468,8 @@
       (cond
         ((eq? message 'print)
          (print (cons "< LET expression AST -> " (cons bindings-asts (cons "Body : " (cons body-ast '()))))))
+        ((eq? message 'evaluate)
+         (evaluate-in (make-let-expression-ast bindings-asts body-ast) (make-env)))
         ((eq? message 'evaluate-in)
          (lambda (env)
            (define loop
@@ -454,23 +477,36 @@
                (if (null? bindings)
                    env
                    (begin
-                     ;(print (env 'list))
+                     (print (env 'list))
                      (loop (cdr bindings) (evaluate-in (car bindings) env))))))
              (let ((local-env (loop bindings-asts env)))
                (let (( local-vars (map car (local-env 'list))) (local-vals (map cadr (local-env 'list))))
                  (begin
-                   ;(print (local-env 'list))
-                   ;(print local-vars)
-                   ;(print local-vals)
-                   ;(display (make-procedure local-vars body-ast))
+                   (print (local-env 'list))
+                   (print local-vars)
+                   (print local-vals)
+                   (display (make-procedure local-vars body-ast))
                    (apply (make-procedure local-vars body-ast) local-vals))))))
         ((eq? message 'substitute-for)
+         (begin
+          (print body-ast)
           (lambda (value name)
-            (if (member name parameters)
-                body-ast
-                (make-abstraction-ast
-                 parameters
-                 (substitute-for-in value name body-ast)))))))))
+            (let ((local-vars (map (lambda (binding) (binding 'varname)) bindings-asts)))
+              (begin
+                (display "\n<<--")
+                (print local-vars)
+                (display value)
+                (display name)
+                (print body-ast)
+                (display "-->>\n")
+              (if (member name local-vars)
+                  (make-let-expression-ast bindings-asts body-ast)
+                  (make-let-expression-ast
+                   (map (lambda (binding-ast) (substitute-for-in value name binding-ast)) bindings-asts)
+                   (substitute-for-in value name body-ast))))))))
+        (else (display "Unknown operation on LET AST"))))))
+
+(trace evaluate-in)
          
            
-                            
+                           
