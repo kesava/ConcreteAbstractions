@@ -277,11 +277,11 @@
                ((equal? name '<) <)
                ((equal? name '>) >)
                ((equal? name '==) =)
-               (else (begin
+               ;(else (begin
                        ;(display "Unsupported procedure")
-                       #f)))))
+               ;        #f)))))
                ;(else name))))
-               ;(else (((variable-lookup env) 'get) name)))))
+               (else (((variable-lookup env) 'get) name)))))
 
 (define supported-procedure? look-up-procedure)
 
@@ -306,7 +306,7 @@
           ((equal? message 'evaluate) (look-up-procedure name))
           ((equal? message 'evaluate-in)
            (lambda (env)
-             (evaluate the-ast)))
+             (look-up-procedure name env)))
           ((equal? message 'print)
            (begin
              (print (cons "<Name-AST -> " (cons name '())))))
@@ -364,8 +364,8 @@
                (arguments (map evaluate operand-asts)))
            (begin
              (display "\neval: ")
-             (display procedure)
-             (print arguments)
+             (print procedure)
+             ;(print arguments)
            (apply procedure arguments))))
         ((equal? message 'evaluate-in)
           (lambda (env)
@@ -373,7 +373,7 @@
               (print (cons operator-ast '()))
             (cond
               ((procedure? (evaluate operator-ast))
-                (let ((procedure (evaluate operator-ast))
+                (let ((procedure (evaluate-in operator-ast env))
                       (arguments (map evaluate operand-asts)))
                   (apply procedure arguments)))
               (else
